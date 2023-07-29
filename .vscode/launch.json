@@ -1,0 +1,20 @@
+{
+	"configurations": [
+		{
+			"type": "node-terminal",
+			"name": "JavaScript Debug Terminal",
+			"request": "launch",
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "Node.js - Run UMR",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/umr.ts",
+			"preLaunchTask": "tsc: build - tsconfig.json",
+			"outFiles": [
+				"${workspaceFolder}/build/**/*.js"
+			]
+		}
+	]
+}
