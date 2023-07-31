@@ -67,14 +67,6 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
         return true;
     }
 
-    public async start2(initialSetTemperature?:number)
-    {
-        if (typeof initialSetTemperature !== 'undefined') {
-            return 1;
-        }
-        return 2;
-    }        
-
     public SetHostname(hostname:string)
     {
         if(this.isStarted)
