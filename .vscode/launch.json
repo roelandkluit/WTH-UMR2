@@ -10,7 +10,7 @@
 			"name": "Node.js - Run UMR",
 			"type": "node",
 			"request": "launch",
-			"program": "${workspaceFolder}/umr.ts",
+			"program": "${workspaceFolder}/umrconnector.ts",
 			"preLaunchTask": "tsc: build - tsconfig.json",
 			"outFiles": [
 				"${workspaceFolder}/build/**/*.js"

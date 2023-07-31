@@ -1,0 +1,25 @@
+{
+  "name": "nodejs-wth-umr-connect",
+  "version": "0.0.1",
+  "author": "roeland Kluit <nodejs-umr-connector@kluit.net>",
+  "devDependencies": {
+    "@types/node": "^20.4.5"
+  },
+  "dependencies": {
+    "strict-event-emitter-types": "^2.0.0"
+  },
+  "description": "Library to connect to WTH UMR2 using nodeJS",
+  "main": "umrconnector.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roelandkluit/WTH-UMR2.git"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/roelandkluit/WTH-UMR2/issues"
+  },
+  "homepage": "https://github.com/roelandkluit/WTH-UMR2#readme"
+}

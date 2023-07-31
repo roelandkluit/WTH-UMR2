@@ -55,6 +55,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UMRConnect = void 0;
+var console_1 = require("console");
 var events_1 = require("events");
 var http_1 = __importDefault(require("http"));
 var UMRConnect = /** @class */ (function (_super) {
@@ -63,9 +64,11 @@ var UMRConnect = /** @class */ (function (_super) {
         var _this = _super !== null && _super.apply(this, arguments) || this;
         _this.UMR_ECO_TEMPERATURE = 16.0;
         _this.UMR_OFF_TEMPERATURE = 8.0;
-        _this.UMR2_HostName = "umr_2";
         _this.updateInterval = 60;
+        _this.newDeviceNotificatonInterval = 10;
         _this.UMRThermostats = [];
+        _this.UMR2_HostName = "umr_2";
+        _this.isStarted = false;
         _this.timer = function (ms) { return new Promise(function (res) { return setTimeout(res, ms); }); };
         return _this;
     }
@@ -81,25 +84,46 @@ var UMRConnect = /** @class */ (function (_super) {
                     case 2:
                         _a.sent();
                         return [3 /*break*/, 0];
-                    case 3:
+                    case 3: return [4 /*yield*/, this.NotifyInitialDevices()];
+                    case 4:
+                        if (!!(_a.sent())) return [3 /*break*/, 6];
+                        return [4 /*yield*/, this.timer(this.newDeviceNotificatonInterval * 1000)];
+                    case 5:
+                        _a.sent();
+                        return [3 /*break*/, 3];
+                    case 6:
+                        console.log("Init completed");
+                        this.isStarted = true;
                         setInterval(function () { _this.UpdateUMRStatus(); }, this.updateInterval * 1000);
                         return [2 /*return*/, true];
                 }
             });
         });
     };
+    UMRConnect.prototype.SetHostname = function (hostname) {
+        if (this.isStarted)
+            throw new console_1.error("Cannot change hostname when connected");
+        if (hostname == "")
+            this.UMR2_HostName = "umr_2";
+        else
+            this.UMR2_HostName = hostname;
+    };
     UMRConnect.prototype.downloadConfig = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var inputThermostatsConfig, JsonThermostatConfig, error_1;
+            var inputThermostatsConfig, JsonThermostatConfig, thermostats, error_1;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 2, , 3]);
+                        _a.trys.push([0, 3, , 4]);
                         return [4 /*yield*/, this.downloadJsonFromUMR('settings.inputs.thermostats.*')];
                     case 1:
                         inputThermostatsConfig = _a.sent();
                         JsonThermostatConfig = inputThermostatsConfig['settings']['inputs']['thermostats'];
+                        return [4 /*yield*/, this.downloadJsonFromUMR('status.process.thermostats.*')];
+                    case 2:
+                        thermostats = _a.sent();
+                        this.jsonThermostatStatus = thermostats['status']['process']['thermostats'];
                         //const outputValveConfig = await this.downloadJsonFromUMR('settings.outputs.valves.*');
                         //this.jsonValfConfig = outputValveConfig['settings']['outputs']['valves'];
                         //const outputChannelConfig = await this.downloadJsonFromUMR('settings.channels.*');
@@ -118,7 +142,8 @@ var UMRConnect = /** @class */ (function (_super) {
                                         Temperature: 0,
                                         activeHeat: false,
                                         activeCool: false,
-                                        type: item.select
+                                        type: item.select,
+                                        isNewlyCreated: false
                                     };
                                     _this.UMRThermostats.push(thermostat);
                                     break;
@@ -127,12 +152,35 @@ var UMRConnect = /** @class */ (function (_super) {
                             }
                         });
                         return [2 /*return*/, true];
-                    case 2:
+                    case 3:
                         error_1 = _a.sent();
                         console.error("Config Retrieval Error: ".concat(error_1));
                         return [2 /*return*/, false];
-                    case 3: return [2 /*return*/];
+                    case 4: return [2 /*return*/];
                 }
+            });
+        });
+    };
+    UMRConnect.prototype.NotifyInitialDevices = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var retval;
+            var _this = this;
+            return __generator(this, function (_a) {
+                retval = true;
+                this.UMRThermostats.forEach(function (Thermostat) {
+                    if (retval) {
+                        if (Thermostat.setPoint != _this.jsonThermostatStatus[Thermostat.umr_id].setpoint) {
+                            if (Thermostat.setPoint == -100) {
+                                Thermostat.setPoint = 0;
+                                Thermostat.isNewlyCreated = true;
+                                _this.emit("onNewUMRDetected", Thermostat.umr_id, _this.jsonThermostatStatus[Thermostat.umr_id].setpoint);
+                                //console.log("Created new thermostat" + Thermostat.umr_id);
+                                retval = false;
+                            }
+                        }
+                    }
+                });
+                return [2 /*return*/, retval];
             });
         });
     };
@@ -175,40 +223,48 @@ var UMRConnect = /** @class */ (function (_super) {
             this.isHeating = this.jsonOutputStatus['heater']['state'] == "on";
             this.isCooling = this.jsonOutputStatus['cooler']['state'] == "on";
             this.UMRThermostats.forEach(function (Thermostat) {
-                var isNewDetect = false;
                 if (Thermostat.setPoint != _this.jsonThermostatStatus[Thermostat.umr_id].setpoint) {
+                    //console.log("Thermostat" + Thermostat.umr_id + " Setpointoff");
                     if (Thermostat.setPoint == -100) {
-                        _this.emit("onNewUMRDetected", Thermostat.umr_id);
-                        isNewDetect = true;
+                        Thermostat.setPoint = 0;
+                        Thermostat.isNewlyCreated = true;
+                        _this.emit("onNewUMRDetected", Thermostat.umr_id, _this.jsonThermostatStatus[Thermostat.umr_id].setpoint);
+                        //console.log("Created new thermostat" + Thermostat.umr_id + ", not updating properties at this moment");
+                        return true;
                     }
-                    //SetPoint ==  UMR_OFF_TEMPERATURE --> Thermostat is OFF
-                    if (_this.jsonThermostatStatus[Thermostat.umr_id].setpoint == _this.UMR_OFF_TEMPERATURE) {
-                        if (Thermostat.isOn || isNewDetect) {
-                            Thermostat.isOn = false;
-                            _this.emit("onUMROnOffChanged", Thermostat.umr_id, Thermostat.isOn);
-                        }
-                    }
-                    //SetPoint ==  UMR_ECO_TEMPERATURE --> Thermostat is ECO
-                    else if (_this.jsonThermostatStatus[Thermostat.umr_id].setpoint == _this.UMR_ECO_TEMPERATURE) {
-                        if (!Thermostat.isEco || isNewDetect) {
-                            Thermostat.isEco = true;
-                            _this.emit("onUMREcoChanged", Thermostat.umr_id, Thermostat.isEco);
-                        }
-                    }
-                    //SetPoint ==  <OTHER> --> Thermostat is On
                     else {
-                        if (!Thermostat.isOn || isNewDetect) {
-                            Thermostat.isOn = true;
-                            _this.emit("onUMROnOffChanged", Thermostat.umr_id, Thermostat.isOn);
+                        //console.log("Thermostat" + Thermostat.umr_id + " processing");
+                        //SetPoint ==  UMR_OFF_TEMPERATURE --> Thermostat is OFF
+                        if (_this.jsonThermostatStatus[Thermostat.umr_id].setpoint == _this.UMR_OFF_TEMPERATURE) {
+                            if (Thermostat.isOn || Thermostat.isNewlyCreated) {
+                                Thermostat.isOn = false;
+                                Thermostat.isEco = false;
+                                _this.emit("onUMROnOffChanged", Thermostat.umr_id, Thermostat.isOn);
+                            }
                         }
-                        if (Thermostat.isEco || isNewDetect) {
-                            Thermostat.isEco = false;
-                            _this.emit("onUMREcoChanged", Thermostat.umr_id, Thermostat.isEco);
+                        //SetPoint ==  UMR_ECO_TEMPERATURE --> Thermostat is ECO
+                        else if (_this.jsonThermostatStatus[Thermostat.umr_id].setpoint == _this.UMR_ECO_TEMPERATURE) {
+                            if (!Thermostat.isEco || Thermostat.isNewlyCreated) {
+                                Thermostat.isEco = true;
+                                _this.emit("onUMREcoChanged", Thermostat.umr_id, Thermostat.isEco);
+                            }
+                        }
+                        //SetPoint ==  <OTHER> --> Thermostat is On
+                        else {
+                            if (!Thermostat.isOn || Thermostat.isNewlyCreated) {
+                                Thermostat.isOn = true;
+                                _this.emit("onUMROnOffChanged", Thermostat.umr_id, Thermostat.isOn);
+                            }
+                            if (Thermostat.isEco || Thermostat.isNewlyCreated) {
+                                Thermostat.isEco = false;
+                                _this.emit("onUMREcoChanged", Thermostat.umr_id, Thermostat.isEco);
+                            }
+                            Thermostat.setPoint = _this.jsonThermostatStatus[Thermostat.umr_id].setpoint;
+                            _this.emit("onUMRSetPointChanged", Thermostat.umr_id, Thermostat.setPoint);
                         }
                         Thermostat.setPoint = _this.jsonThermostatStatus[Thermostat.umr_id].setpoint;
-                        _this.emit("onUMRSetPointChanged", Thermostat.umr_id, Thermostat.setPoint);
+                        Thermostat.isNewlyCreated = false;
                     }
-                    Thermostat.setPoint = _this.jsonThermostatStatus[Thermostat.umr_id].setpoint;
                 }
                 if (Thermostat.Temperature != _this.jsonThermostatStatus[Thermostat.umr_id].temperature) {
                     Thermostat.Temperature = _this.jsonThermostatStatus[Thermostat.umr_id].temperature;
@@ -263,6 +319,45 @@ var UMRConnect = /** @class */ (function (_super) {
             });
         });
     };
+    UMRConnect.prototype.SetEco = function (thermostat) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                this.UMRThermostats[thermostat].isEco = true;
+                this.ThermostatNewSetpoint(thermostat, this.UMR_ECO_TEMPERATURE);
+                return [2 /*return*/];
+            });
+        });
+    };
+    UMRConnect.prototype.SetEcoEnds = function (thermostat, temperature) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                console.log("EcoEnd");
+                this.UMRThermostats[thermostat].isEco = false;
+                this.ThermostatNewSetpoint(thermostat, temperature);
+                return [2 /*return*/];
+            });
+        });
+    };
+    UMRConnect.prototype.SetOn = function (thermostat, temperature) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (!this.UMRThermostats[thermostat].isEco) {
+                    this.ThermostatNewSetpoint(thermostat, temperature);
+                    console.log("On");
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
+    UMRConnect.prototype.SetOff = function (thermostat) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                console.log("Off");
+                this.ThermostatNewSetpoint(thermostat, this.UMR_OFF_TEMPERATURE);
+                return [2 /*return*/];
+            });
+        });
+    };
     UMRConnect.prototype.ThermostatNewSetpoint = function (thermostat, newTemperature) {
         return __awaiter(this, void 0, void 0, function () {
             var dottetedTemp, postBody;
@@ -275,15 +370,14 @@ var UMRConnect = /** @class */ (function (_super) {
                     case 1:
                         _a.sent();
                         if (newTemperature != this.newSetpointTemperature) {
-                            console.log("Setpoint changed during wait");
+                            //console.log("Setpoint changed during wait");
                             return [2 /*return*/, false];
                         }
                         else {
-                            console.log("Setpoint is beeing updated");
+                            //console.log("Setpoint is beeing updated");
                             try {
                                 dottetedTemp = newTemperature.toLocaleString('en-us', { minimumFractionDigits: 1 });
                                 postBody = '{"status":{"process":{"thermostats":[{"index":' + thermostat + ',"setpoint":' + dottetedTemp + '}]}}}';
-                                console.log(postBody);
                                 this.postUMRSetting(this.UMR2_HostName, postBody);
                                 return [2 /*return*/, true];
                             }
@@ -334,9 +428,10 @@ var UMRConnect = /** @class */ (function (_super) {
                     case 3: return [2 /*return*/, _a.sent()];
                     case 4:
                         error_4 = _a.sent();
-                        console.warn("Set_config (".concat(i, "): ").concat(error_4));
+                        //console.warn(`Set_config (${i}): ${error}`);
                         return [4 /*yield*/, this.timer(500)];
                     case 5:
+                        //console.warn(`Set_config (${i}): ${error}`);
                         _a.sent();
                         i++;
                         if (i == 10)
@@ -374,7 +469,6 @@ var UMRConnect = /** @class */ (function (_super) {
                             });
                         });
                         req.on('error', function (e) {
-                            console.error("problem with request: ".concat(e.message));
                             reject(e);
                         });
                         // Write data to request body      
@@ -397,11 +491,9 @@ var UMRConnect = /** @class */ (function (_super) {
                                 //console.log("closed");
                             });
                             res.on('end', function () {
-                                //console.log('Download successful');
                                 resolve(JSON.parse(data));
                             });
                         }).on('error', function (err) {
-                            //console.log(`Error: ${err.message}`);
                             reject(err);
                         });
                         request.shouldKeepAlive = false;

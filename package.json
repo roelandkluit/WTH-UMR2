@@ -1,4 +1,8 @@
-{
+{  
+  "name": "nodejs-wth-umr-connect",
+  "version": "0.0.1",
+  "author": "roeland Kluit <nodejs-umr-connector@kluit.net>",
+   
   "devDependencies": {
     "@types/node": "^20.4.5"
   },
