@@ -220,8 +220,8 @@ var UMRConnect = /** @class */ (function (_super) {
     UMRConnect.prototype.processUMRdata = function () {
         var _this = this;
         try {
-            this.isHeating = this.jsonOutputStatus['heater']['state'] == "on";
-            this.isCooling = this.jsonOutputStatus['cooler']['state'] == "on";
+            this.isHeating = this.jsonOutputStatus['heater']['state'] != "off";
+            this.isCooling = this.jsonOutputStatus['cooler']['state'] != "off";
             this.UMRThermostats.forEach(function (Thermostat) {
                 if (Thermostat.setPoint != _this.jsonThermostatStatus[Thermostat.umr_id].setpoint) {
                     //console.log("Thermostat" + Thermostat.umr_id + " Setpointoff");
@@ -270,12 +270,12 @@ var UMRConnect = /** @class */ (function (_super) {
                     Thermostat.Temperature = _this.jsonThermostatStatus[Thermostat.umr_id].temperature;
                     _this.emit("onUMRMessuredTemperatureChanged", Thermostat.umr_id, Thermostat.Temperature);
                 }
-                if (Thermostat.activeHeat != (_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isHeating)) {
-                    Thermostat.activeHeat = (_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isHeating);
+                if (Thermostat.activeHeat != ((_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isHeating))) {
+                    Thermostat.activeHeat = ((_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isHeating));
                     _this.emit("onUMRHeatIsActiveChanged", Thermostat.umr_id, Thermostat.activeHeat);
                 }
-                if (Thermostat.activeCool != (_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isCooling)) {
-                    Thermostat.activeCool = (_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isCooling);
+                if (Thermostat.activeCool != ((_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isCooling))) {
+                    Thermostat.activeCool = ((_this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (_this.isCooling));
                     _this.emit("onUMRCoolingIsActiveChanged", Thermostat.umr_id, Thermostat.activeCool);
                 }
             });
@@ -366,7 +366,7 @@ var UMRConnect = /** @class */ (function (_super) {
                     case 0:
                         if (!(newTemperature >= 5 && newTemperature < 35)) return [3 /*break*/, 2];
                         this.newSetpointTemperature = newTemperature;
-                        return [4 /*yield*/, this.timer(2000)];
+                        return [4 /*yield*/, this.timer(5000)];
                     case 1:
                         _a.sent();
                         if (newTemperature != this.newSetpointTemperature) {
@@ -379,6 +379,7 @@ var UMRConnect = /** @class */ (function (_super) {
                                 dottetedTemp = newTemperature.toLocaleString('en-us', { minimumFractionDigits: 1 });
                                 postBody = '{"status":{"process":{"thermostats":[{"index":' + thermostat + ',"setpoint":' + dottetedTemp + '}]}}}';
                                 this.postUMRSetting(this.UMR2_HostName, postBody);
+                                this.UMRThermostats[thermostat].setPoint = 0; //Force update of setpoint from UMR
                                 return [2 /*return*/, true];
                             }
                             catch (_b) {
