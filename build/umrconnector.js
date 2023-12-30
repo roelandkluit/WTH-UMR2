@@ -161,6 +161,18 @@ var UMRConnect = /** @class */ (function (_super) {
             });
         });
     };
+    UMRConnect.prototype.GetThermostatFromArray = function (ThermostatId) {
+        var FoundThermostat = undefined;
+        this.UMRThermostats.forEach(function (Thermostat) {
+            //console.log("Looking: " + Thermostat.umr_id + "==" + ThermostatId);
+            if (Thermostat.umr_id == ThermostatId) {
+                //console.log("Found: " + Thermostat.umr_id + "==" + ThermostatId);
+                FoundThermostat = Thermostat;
+                return FoundThermostat; //Note, this returns only the forEach statement!
+            }
+        });
+        return FoundThermostat;
+    };
     UMRConnect.prototype.NotifyInitialDevices = function () {
         return __awaiter(this, void 0, void 0, function () {
             var retval;
@@ -321,29 +333,52 @@ var UMRConnect = /** @class */ (function (_super) {
     };
     UMRConnect.prototype.SetEco = function (thermostat) {
         return __awaiter(this, void 0, void 0, function () {
+            var oThermostat;
             return __generator(this, function (_a) {
-                this.UMRThermostats[thermostat].isEco = true;
-                this.ThermostatNewSetpoint(thermostat, this.UMR_ECO_TEMPERATURE);
+                console.log("SetEco " + thermostat);
+                oThermostat = this.GetThermostatFromArray(thermostat);
+                if (oThermostat == undefined) {
+                    console.error("thermostat not found " + thermostat);
+                }
+                else {
+                    oThermostat.isEco = true;
+                    this.ThermostatNewSetpoint(thermostat, this.UMR_ECO_TEMPERATURE);
+                }
                 return [2 /*return*/];
             });
         });
     };
     UMRConnect.prototype.SetEcoEnds = function (thermostat, temperature) {
         return __awaiter(this, void 0, void 0, function () {
+            var oThermostat;
             return __generator(this, function (_a) {
-                console.log("EcoEnd");
-                this.UMRThermostats[thermostat].isEco = false;
-                this.ThermostatNewSetpoint(thermostat, temperature);
+                console.log("EcoEnd " + thermostat);
+                oThermostat = this.GetThermostatFromArray(thermostat);
+                if (oThermostat == undefined) {
+                    console.error("thermostat not found " + thermostat);
+                }
+                else {
+                    oThermostat.isEco = false;
+                    this.ThermostatNewSetpoint(thermostat, temperature);
+                }
                 return [2 /*return*/];
             });
         });
     };
     UMRConnect.prototype.SetOn = function (thermostat, temperature) {
         return __awaiter(this, void 0, void 0, function () {
+            var oThermostat;
             return __generator(this, function (_a) {
-                if (!this.UMRThermostats[thermostat].isEco) {
-                    this.ThermostatNewSetpoint(thermostat, temperature);
-                    console.log("On");
+                console.log("SetOn " + thermostat);
+                oThermostat = this.GetThermostatFromArray(thermostat);
+                if (oThermostat == undefined) {
+                    console.error("thermostat not found " + thermostat);
+                }
+                else {
+                    if (!oThermostat.isEco) {
+                        this.ThermostatNewSetpoint(thermostat, temperature);
+                        console.log("On");
+                    }
                 }
                 return [2 /*return*/];
             });
@@ -352,7 +387,7 @@ var UMRConnect = /** @class */ (function (_super) {
     UMRConnect.prototype.SetOff = function (thermostat) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                console.log("Off");
+                console.log("Off " + thermostat);
                 this.ThermostatNewSetpoint(thermostat, this.UMR_OFF_TEMPERATURE);
                 return [2 /*return*/];
             });

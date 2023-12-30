@@ -125,6 +125,23 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
         }
     }
 
+    private GetThermostatFromArray(ThermostatId:Number): UMRThermostatStatus
+    {
+        var FoundThermostat = undefined;
+
+        this.UMRThermostats.forEach(Thermostat => {
+                          
+            //console.log("Looking: " + Thermostat.umr_id + "==" + ThermostatId);
+            if(Thermostat.umr_id == ThermostatId)
+            {
+                //console.log("Found: " + Thermostat.umr_id + "==" + ThermostatId);
+                FoundThermostat = Thermostat;                
+                return FoundThermostat; //Note, this returns only the forEach statement!
+            }
+        });
+        return FoundThermostat;
+    }
+
     private async NotifyInitialDevices(): Promise<boolean>
     {
         var retval:boolean = true;
@@ -290,32 +307,57 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
 
     public async SetEco(thermostat:number)
     {
-        this.UMRThermostats[thermostat].isEco = true;
-        this.ThermostatNewSetpoint(thermostat, this.UMR_ECO_TEMPERATURE);
+        console.log("SetEco " + thermostat);
+        var oThermostat = this.GetThermostatFromArray(thermostat);
+        if(oThermostat == undefined)
+        {
+            console.error("thermostat not found " + thermostat);
+        }
+        else
+        {
+            oThermostat.isEco = true;
+            this.ThermostatNewSetpoint(thermostat, this.UMR_ECO_TEMPERATURE);
+        }
     }
 
     public async SetEcoEnds(thermostat:number, temperature:number)
     {
-        console.log("EcoEnd");
-        this.UMRThermostats[thermostat].isEco = false;
-        this.ThermostatNewSetpoint(thermostat, temperature);
+        console.log("EcoEnd " + thermostat);
+        var oThermostat = this.GetThermostatFromArray(thermostat);
+        if(oThermostat == undefined)
+        {
+            console.error("thermostat not found " + thermostat);
+        }
+        else
+        {        
+            oThermostat.isEco = false;
+            this.ThermostatNewSetpoint(thermostat, temperature);
+        }
     }
 
     public async SetOn(thermostat:number, temperature:number)
     {
-        if(!this.UMRThermostats[thermostat].isEco)
-        {            
-            this.ThermostatNewSetpoint(thermostat, temperature);
-            console.log("On");
+        console.log("SetOn " + thermostat);
+        var oThermostat = this.GetThermostatFromArray(thermostat);
+        if(oThermostat == undefined)
+        {
+            console.error("thermostat not found " + thermostat);
+        }
+        else
+        {        
+            if(!oThermostat.isEco)
+            {            
+                this.ThermostatNewSetpoint(thermostat, temperature);
+                console.log("On");
+            }
         }
     }
 
     public async SetOff(thermostat:number)
     {
-        console.log("Off");
+        console.log("Off " + thermostat);
         this.ThermostatNewSetpoint(thermostat, this.UMR_OFF_TEMPERATURE);
     }
-
 
     public async ThermostatNewSetpoint(thermostat:number, newTemperature:number):Promise<boolean>
     {
