@@ -1,12 +1,7 @@
 import { rejects } from 'assert';
-import { error } from 'console';
-import events, { EventEmitter } from 'events';
-import http from 'http';
-import { request } from 'http';
+import { EventEmitter } from 'events';
+import * as http from 'http';
 import { StrictEventEmitter } from 'strict-event-emitter-types';
-
-//import { it } from 'node:test';
-//import { valve } from "./umr-includes";
 
 type UMRThermostatStatus = {
     umr_id: number;
@@ -19,7 +14,6 @@ type UMRThermostatStatus = {
     activeCool: boolean;
     isNewlyCreated: boolean;
 }
-
 
 interface UMRClassEvents {
     'onNewUMRDetected': (thermostat:number, InitialSetPoint:number) => void;
@@ -40,16 +34,16 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
     public updateInterval: number = 60;
     public newDeviceNotificatonInterval: number = 10;
 
-    private jsonOutputStatus:JSON;
-    private jsonThermostatStatus:JSON;
+    private jsonOutputStatus:JSON = {} as JSON;
+    private jsonThermostatStatus:JSON = {} as JSON;
     private UMRThermostats: Array<UMRThermostatStatus> = [];
-    private newSetpointTemperature:number;
+    private newSetpointTemperature:number = 0;
     private UMR2_HostName:string = "umr_2";
     private isStarted:boolean = false; 
 
-    private timer = ms => new Promise( res => setTimeout(res, ms));
-    public isHeating: boolean;
-    public isCooling: boolean;
+    private timer = (ms:any) => new Promise( (res:any) => setTimeout(res, ms));
+    public isHeating: boolean = false;
+    public isCooling: boolean = false;
 
     public async Start(): Promise<boolean>
     {
@@ -70,7 +64,7 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
     public SetHostname(hostname:string)
     {
         if(this.isStarted)
-            throw new error("Cannot change hostname when connected");
+            throw new Error("Cannot change hostname when connected");
 
         if(hostname == "")
             this.UMR2_HostName = "umr_2";
@@ -93,7 +87,7 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
             //const outputChannelConfig = await this.downloadJsonFromUMR('settings.channels.*');
             //this.jsonChannelConfig = outputChannelConfig['settings']['channels'];
 
-            JsonThermostatConfig.forEach(item => 
+            JsonThermostatConfig.forEach((item:any) => 
             {               
                 switch(item.select)
                 {
@@ -125,9 +119,9 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
         }
     }
 
-    private GetThermostatFromArray(ThermostatId:Number): UMRThermostatStatus
+    private GetThermostatFromArray(ThermostatId:Number): UMRThermostatStatus | undefined
     {
-        var FoundThermostat = undefined;
+        var FoundThermostat:(UMRThermostatStatus | undefined) = undefined;
 
         this.UMRThermostats.forEach(Thermostat => {
                           
@@ -149,13 +143,13 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
                   
             if(retval)
             {
-                if(Thermostat.setPoint != this.jsonThermostatStatus[Thermostat.umr_id].setpoint)
+                if(Thermostat.setPoint != (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint)
                 {
                     if(Thermostat.setPoint == -100)
                     {
                         Thermostat.setPoint = 0;
                         Thermostat.isNewlyCreated = true;
-                        this.emit("onNewUMRDetected", Thermostat.umr_id, this.jsonThermostatStatus[Thermostat.umr_id].setpoint);
+                        this.emit("onNewUMRDetected", Thermostat.umr_id, (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint);
                         //console.log("Created new thermostat" + Thermostat.umr_id);
                         retval = false;
                     }
@@ -194,19 +188,19 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
     private processUMRdata():boolean
     {
         try{            
-            this.isHeating = this.jsonOutputStatus['heater']['state'] != "off";
-            this.isCooling = this.jsonOutputStatus['cooler']['state'] != "off";
+            this.isHeating = (this.jsonOutputStatus as any)['heater']['state'] != "off";
+            this.isCooling = (this.jsonOutputStatus as any)['cooler']['state'] != "off";
 
             this.UMRThermostats.forEach(Thermostat => {
                                 
-                if(Thermostat.setPoint != this.jsonThermostatStatus[Thermostat.umr_id].setpoint)
+                if(Thermostat.setPoint != (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint)
                 {
                     //console.log("Thermostat" + Thermostat.umr_id + " Setpointoff");
                     if(Thermostat.setPoint == -100)
                     {
                         Thermostat.setPoint = 0;
                         Thermostat.isNewlyCreated = true;
-                        this.emit("onNewUMRDetected", Thermostat.umr_id, this.jsonThermostatStatus[Thermostat.umr_id].setpoint);
+                        this.emit("onNewUMRDetected", Thermostat.umr_id, (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint);
                         //console.log("Created new thermostat" + Thermostat.umr_id + ", not updating properties at this moment");
                         return true;
                     }
@@ -215,7 +209,7 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
                         //console.log("Thermostat" + Thermostat.umr_id + " processing");
 
                         //SetPoint ==  UMR_OFF_TEMPERATURE --> Thermostat is OFF
-                        if(this.jsonThermostatStatus[Thermostat.umr_id].setpoint == this.UMR_OFF_TEMPERATURE)
+                        if((this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint == this.UMR_OFF_TEMPERATURE)
                         {
                             if(Thermostat.isOn || Thermostat.isNewlyCreated)
                             {
@@ -225,7 +219,7 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
                             }                    
                         }
                         //SetPoint ==  UMR_ECO_TEMPERATURE --> Thermostat is ECO
-                        else if(this.jsonThermostatStatus[Thermostat.umr_id].setpoint == this.UMR_ECO_TEMPERATURE)
+                        else if((this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint == this.UMR_ECO_TEMPERATURE)
                         {
                             if(!Thermostat.isEco || Thermostat.isNewlyCreated)
                             {
@@ -246,29 +240,29 @@ export class UMRConnect extends (EventEmitter as { new(): UMRChannelEmitter})
                                 Thermostat.isEco = false;
                                 this.emit("onUMREcoChanged", Thermostat.umr_id, Thermostat.isEco);
                             }
-                            Thermostat.setPoint = this.jsonThermostatStatus[Thermostat.umr_id].setpoint
+                            Thermostat.setPoint = (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint
                             this.emit("onUMRSetPointChanged", Thermostat.umr_id, Thermostat.setPoint);
                         }
-                        Thermostat.setPoint = this.jsonThermostatStatus[Thermostat.umr_id].setpoint
+                        Thermostat.setPoint = (this.jsonThermostatStatus as any)[Thermostat.umr_id].setpoint
                         Thermostat.isNewlyCreated = false;
                     }
                 }
 
-                if(Thermostat.Temperature != this.jsonThermostatStatus[Thermostat.umr_id].temperature)
+                if(Thermostat.Temperature != (this.jsonThermostatStatus as any)[Thermostat.umr_id].temperature)
                 {
-                    Thermostat.Temperature = this.jsonThermostatStatus[Thermostat.umr_id].temperature;
+                    Thermostat.Temperature = (this.jsonThermostatStatus as any)[Thermostat.umr_id].temperature;
                     this.emit("onUMRMessuredTemperatureChanged", Thermostat.umr_id, Thermostat.Temperature);
                 }
                 
-                if(Thermostat.activeHeat != ((this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (this.isHeating)))
+                if(Thermostat.activeHeat != (((this.jsonThermostatStatus as any)[Thermostat.umr_id].factor > 0) && (this.isHeating)))
                 {
-                    Thermostat.activeHeat = ((this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (this.isHeating));
+                    Thermostat.activeHeat = (((this.jsonThermostatStatus as any)[Thermostat.umr_id].factor > 0) && (this.isHeating));
                     this.emit("onUMRHeatIsActiveChanged", Thermostat.umr_id, Thermostat.activeHeat);
                 }
 
-                if(Thermostat.activeCool != ((this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (this.isCooling)))
+                if(Thermostat.activeCool != (((this.jsonThermostatStatus as any)[Thermostat.umr_id].factor > 0) && (this.isCooling)))
                 {
-                    Thermostat.activeCool = ((this.jsonThermostatStatus[Thermostat.umr_id].factor > 0) && (this.isCooling));
+                    Thermostat.activeCool = (((this.jsonThermostatStatus as any)[Thermostat.umr_id].factor > 0) && (this.isCooling));
                     this.emit("onUMRCoolingIsActiveChanged", Thermostat.umr_id, Thermostat.activeCool);                    
                 }
             });

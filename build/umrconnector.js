@@ -50,14 +50,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UMRConnect = void 0;
-var console_1 = require("console");
 var events_1 = require("events");
-var http_1 = __importDefault(require("http"));
+var http = require("http");
 var UMRConnect = /** @class */ (function (_super) {
     __extends(UMRConnect, _super);
     function UMRConnect() {
@@ -66,10 +62,15 @@ var UMRConnect = /** @class */ (function (_super) {
         _this.UMR_OFF_TEMPERATURE = 8.0;
         _this.updateInterval = 60;
         _this.newDeviceNotificatonInterval = 10;
+        _this.jsonOutputStatus = {};
+        _this.jsonThermostatStatus = {};
         _this.UMRThermostats = [];
+        _this.newSetpointTemperature = 0;
         _this.UMR2_HostName = "umr_2";
         _this.isStarted = false;
         _this.timer = function (ms) { return new Promise(function (res) { return setTimeout(res, ms); }); };
+        _this.isHeating = false;
+        _this.isCooling = false;
         return _this;
     }
     UMRConnect.prototype.Start = function () {
@@ -102,7 +103,7 @@ var UMRConnect = /** @class */ (function (_super) {
     };
     UMRConnect.prototype.SetHostname = function (hostname) {
         if (this.isStarted)
-            throw new console_1.error("Cannot change hostname when connected");
+            throw new Error("Cannot change hostname when connected");
         if (hostname == "")
             this.UMR2_HostName = "umr_2";
         else
@@ -493,7 +494,7 @@ var UMRConnect = /** @class */ (function (_super) {
                                 'Content-Length': Buffer.byteLength(postData),
                             },
                         };
-                        var req = http_1.default.request(options, function (res) {
+                        var req = http.request(options, function (res) {
                             //console.log(`STATUS: ${res.statusCode}`);
                             res.setEncoding('utf8');
                             res.on('data', function (chunk) {
@@ -518,7 +519,7 @@ var UMRConnect = /** @class */ (function (_super) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
-                        var request = http_1.default.get(url, { "method": "get", "headers": { "Connection": "close", "User-Agent": "ABBFAH" } }, function (res) {
+                        var request = http.get(url, { "method": "get", "headers": { "Connection": "close", "User-Agent": "ABBFAH" } }, function (res) {
                             var data = '';
                             res.on('data', function (chunk) {
                                 data += chunk;
